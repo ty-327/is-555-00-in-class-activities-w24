@@ -35,7 +35,7 @@
 library(tidyverse)
 df <- read_csv('https://www.dropbox.com/s/dl/7605z3d833s065x/ugly_fruit.csv')
 
-df <- read_csv('https://www.dropbox.com/s/dl/7605z3d833s065x/ugly_fruit.csv', col_types = 'ccccccc')
+df <- read_csv('https://www.dropbox.com/s/dl/7605z3d833s065x/ugly_fruit.csv', col_types = 'ccccccc') #forcing column types to be 'characters'
 
 # is.na() filter to NA payment methods
 df %>% 
@@ -78,6 +78,9 @@ df %>%
 # count(), if_else(), is.na()
 # Hypothetical: Payments are either credit or debit. 
 # Clean up that column...because NAs are maybe supposed to be 'debit'
+
+df %>% count(paid) #lists the counts of each value in column 'paid'
+
 df %>% 
   mutate(paid_c = if_else(is.na(paid), 'debit','credit'))
 
