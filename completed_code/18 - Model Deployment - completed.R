@@ -7,7 +7,6 @@ library(tidymodels)
 # install.packages('plumber')
 # install.packages('ranger')
 
-library(ranger)
 library(vetiver)
 library(pins)
 library(plumber)
@@ -23,8 +22,9 @@ housing_testing <- housing_split %>% testing()
 
 housing_rec <- recipe(sale_price ~ .,
                       data = housing_training) %>% 
-  step_YeoJohnson(all_numeric_predictors()) %>% 
+  # step_YeoJohnson(all_numeric_predictors()) %>% 
   step_normalize(all_numeric_predictors()) %>% 
+  step_novel(all_nominal_predictors()) %>% 
   step_other(ms_sub_class,ms_zoning,exterior_1st,exterior_2nd,utilities,electrical) %>% 
   step_unknown(all_nominal_predictors()) %>%
   step_dummy(all_nominal_predictors()) %>% 
@@ -49,22 +49,23 @@ final_model <- housing_wkfl %>%
 final_model %>% collect_metrics()
 final_model %>% collect_predictions()
 
+
 # Now we need to extract the trained workflow from the larger final fit result:
 extracted_workflow <- final_model %>% extract_workflow()
 
 # And create from that (trained) workflow a deployable model object. 
 # We'll use vetiver for this. Give it a name, too.
-v_model <- vetiver_model(extracted_workflow, 'house_prices')
+deployable_model <- vetiver_model(extracted_workflow, 'house_prices')
 
 
 # Now let's create a plumber-based API server for local testing
 # pr(), vetiver_api(), pr_run()
+pr() %>%
+  vetiver_api(deployable_model) %>%
+  pr_run(port = 8888)
 
-
-
-###### Let's go check out our temporary API.
-###### Copy the code below into a new session (Session >> New Session)
-# 
+# Let's go check out our temporary API.
+# Copy the code below into a new session (Session >> New Session):
 # library(tidyverse)
 # library(tidymodels)
 # library(vetiver)
@@ -82,29 +83,26 @@ v_model <- vetiver_model(extracted_workflow, 'house_prices')
 # next_months_data %>%
 #   bind_cols(api_preds) %>%
 #   rsq(truth = sale_price, estimate = .pred)
-#
-#
-###### [--End Copy--]
-
-
-
 
 
 # Let's look at publishing with the pins package:
-# First, create a "pin_board"
+# First, create a "pin-board"
+pin_board <- board_folder('~/Desktop/in-class-demo/models', versioned = TRUE)
 
 
 # Write the (deployable) vetiver model object to the board:
-
+pin_board %>% vetiver_pin_write(deployable_model)
+vetiver_pin_write(pin_board, deployable_model)
 
 # Boards can hold lots of different models (and versions). These can be listed 
 # and retreived. 
 pin_board %>% pin_list()
-pin_board %>% pin_versions('[model name]')
+pin_board %>% pin_versions('house_prices')
 
 
 # Moving from a pin board to a docker-based plumber API is as simple as preparing
 # the docker scripts:
+vetiver_prepare_docker(pin_board, "house_prices", version = '20240320T231653Z-4806b', path = '~/Desktop/in-class-demo/')
 
 
 
